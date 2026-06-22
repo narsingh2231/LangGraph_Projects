@@ -5,3 +5,5 @@ langchain-community
 langchain-groq
 langchain-openai
 pydantic
+arxiv
+wikipedia
