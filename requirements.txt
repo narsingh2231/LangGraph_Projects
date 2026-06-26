@@ -9,3 +9,8 @@ arxiv
 wikipedia
 streamlit
 langgraph-checkpoint-sqlite
+langchain-text-splitters
+pypdf
+langchain-huggingface
+sentence_transformers
+faiss-cpu
