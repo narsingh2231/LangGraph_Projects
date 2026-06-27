@@ -14,3 +14,6 @@ pypdf
 langchain-huggingface
 sentence_transformers
 faiss-cpu
+langchain-tavily
+fastmcp
+langchain_mcp_adapters
