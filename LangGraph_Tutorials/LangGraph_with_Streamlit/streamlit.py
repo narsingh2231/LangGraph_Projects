@@ -1,6 +1,6 @@
 import streamlit as st
 from app import chatbot, retrieve_all_threads
-from langchain_core.messages import HumanMessage, AIMessage
+from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
 import uuid
 
 
@@ -44,24 +44,28 @@ add_thread(st.session_state['thread_id'])
 st.sidebar.title('LangGraph Chatbot')
 
 if st.sidebar.button('New Chat'):
-    reset_chat()
+    if not st.session_state['message_history']== []:
+        reset_chat()
 
 st.sidebar.header('My Conversations')
 
 for thread_id in st.session_state['chat_threads'][::-1]:
     if st.sidebar.button(str(thread_id)):
-        st.session_state['thread_id'] = thread_id
-        messages = load_converstion(st.session_state['thread_id'])
-       
-        temp_messages = []
-        for message in messages:
-            if isinstance(message, HumanMessage):
-                role='user'
-            else:
-                role='assistant'
-            temp_messages.append({'role': role,'content' : message.content})
-            
-        st.session_state['message_history'] = temp_messages
+        if thread_id == st.session_state['thread_id']:
+            pass  # Already on this thread
+        else:
+            st.session_state['thread_id'] = thread_id
+            messages = load_converstion(st.session_state['thread_id'])
+        
+            temp_messages = []
+            for message in messages:
+                if isinstance(message, HumanMessage):
+                    role='user'
+                else:
+                    role='assistant'
+                temp_messages.append({'role': role,'content' : message.content})
+                
+            st.session_state['message_history'] = temp_messages
         
 
 # ********************************************** Main UI ****************************************************
@@ -89,17 +93,39 @@ if user_input:
 
    # first add the message to message_history
     with st.chat_message("assistant"):
+        status_holder = {'box':None}
         def ai_only_stream():
             for message_chunk, metadata in chatbot.stream(
                 {"messages": [HumanMessage(content=user_input) ]},
                 config=CONFIG,
                 stream_mode="messages"):
+                
+                # Lazily create & update the SAME status container when any tool runs
+                if isinstance(message_chunk, ToolMessage):
+                    tool_name = getattr(message_chunk, "name", "tool")
+                    if status_holder["box"] is None:
+                        status_holder["box"] = st.status(
+                            f" Using `{tool_name}` ... ", expanded=True)
+
+                    else:
+                        status_holder["box"].update(
+                            label=f"🕘 Using {tool_name}' ... ",
+                            state="running",
+                            expanded=True,)
+
+
 
                 if isinstance(message_chunk, AIMessage) :
                     # yield only assistant tokens
-                    yield message_chunk. content
+                    yield message_chunk.content
 
         ai_message = st.write_stream(ai_only_stream())
+        
+        # Finalizing only if a tool was actually used
+        if status_holder['box'] is not None:
+            status_holder['box'].update(
+                label="✅Tool finished", state="complete", expanded=False
+            )
 
   
     st.session_state['message_history'].append({'role':'assistant', 'content':ai_message})
